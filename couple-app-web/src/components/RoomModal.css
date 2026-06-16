@@ -1,0 +1,66 @@
+.room-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.15s ease;
+}
+
+.room-modal {
+  background: #ffffff;
+  border-radius: 18px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.16);
+  animation: popIn 0.18s ease;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.96); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.room-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #efece4;
+}
+
+.room-modal-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #2b2924;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-modal-close {
+  border: none;
+  background: #f4f2ec;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #8a857a;
+  font-size: 13px;
+}
+
+.room-modal-body {
+  padding: 18px 20px;
+}
+
+.room-placeholder {
+  text-align: center;
+  padding: 40px 20px;
+  color: #b4b2a9;
+  font-size: 13px;
+  line-height: 1.6;
+}

@@ -1,0 +1,58 @@
+.world-wrap {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f5f3ee;
+  padding: 16px;
+}
+
+.world-header {
+  width: 100%;
+  max-width: 880px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.world-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #2b2924;
+}
+
+.logout-btn {
+  border: 1px solid #e5e1d8;
+  background: #ffffff;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #8a857a;
+  cursor: pointer;
+}
+
+.world-canvas-wrap {
+  position: relative;
+}
+
+.pairing-code-display {
+  background: #f9f7f2;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 8px;
+}
+
+.pairing-code {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #534ab7;
+}
+
+.pairing-hint {
+  font-size: 11px;
+  color: #b4b2a9;
+  margin-top: 6px;
+}

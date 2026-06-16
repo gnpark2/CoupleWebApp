@@ -1,0 +1,35 @@
+spring:
+  application:
+    name: ai-service
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: ai-service
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "java.util,com.coupleapp.common.dto"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+ai:
+  provider: ${AI_PROVIDER:anthropic}
+  anthropic:
+    api-key: ${ANTHROPIC_API_KEY:skip-for-now}
+    model: claude-sonnet-4-6
+  openai:
+    api-key: ${OPENAI_API_KEY:skip-for-now}
+    model: gpt-4o-mini
+  stub-mode: ${AI_STUB_MODE:true}
+server:
+  port: 8090
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-key-minimum-32-characters-long}
+  access-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
+  refresh-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:2592000000}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

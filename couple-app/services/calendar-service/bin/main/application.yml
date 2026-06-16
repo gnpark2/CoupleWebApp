@@ -1,0 +1,40 @@
+spring:
+  application:
+    name: calendar-service
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/coupleapp}
+    username: ${SPRING_DATASOURCE_USERNAME:coupleapp}
+    password: ${SPRING_DATASOURCE_PASSWORD:coupleapp_secret}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        default_schema: calendar
+    open-in-view: false
+  kafka:
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: calendar-service
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "java.util,com.coupleapp.common.dto"
+server:
+  port: 8088
+jwt:
+  secret: ${JWT_SECRET:local-dev-secret-key-minimum-32-characters-long}
+  access-expiry-ms: ${JWT_ACCESS_EXPIRY_MS:900000}
+  refresh-expiry-ms: ${JWT_REFRESH_EXPIRY_MS:2592000000}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

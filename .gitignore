@@ -1,0 +1,80 @@
+# ── Java / Spring Boot ──────────────────────────────────────
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.log
+
+# Gradle
+.gradle/
+**/build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+gradle-app.setting
+!gradle-wrapper.jar
+!gradle-wrapper.properties
+
+# Maven
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+
+# Spring Boot
+HELP.md
+spring-shell.log
+
+# ── Node / Web ──────────────────────────────────────────────
+node_modules/
+dist/
+.vite/
+*.local
+
+# ── Environment / Secrets ────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.env
+
+# Firebase credentials
+/secrets/
+firebase-credentials.json
+
+# ── IDE ──────────────────────────────────────────────────────
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ── Docker ───────────────────────────────────────────────────
+docker-compose.override.yml
+
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Test / Coverage ──────────────────────────────────────────
+coverage/
+.nyc_output/
+test-results/

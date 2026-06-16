@@ -1,0 +1,313 @@
+networks:
+  couple-net:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  redis-data:
+  kafka-data:
+  elasticsearch-data:
+
+services:
+
+  # ── Infrastructure ──────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: couple-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports: ["5432:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./infrastructure/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks: [couple-net]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: couple-redis
+    command: redis-server /usr/local/etc/redis/redis.conf
+    ports: ["6379:6379"]
+    volumes:
+      - redis-data:/data
+      - ./infrastructure/redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks: [couple-net]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: couple-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks: [couple-net]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: couple-kafka
+    depends_on: [zookeeper]
+    ports:
+      - "9092:9092"
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'false'
+    volumes: [kafka-data:/var/lib/kafka/data]
+    networks: [couple-net]
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "kafka:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: couple-kafka-init
+    depends_on:
+      kafka: {condition: service_healthy}
+    volumes: ["./infrastructure/kafka/topics-init.sh:/topics-init.sh"]
+    command: "bash /topics-init.sh"
+    networks: [couple-net]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: couple-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports: ["9200:9200"]
+    volumes: [elasticsearch-data:/usr/share/elasticsearch/data]
+    networks: [couple-net]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -qE 'green|yellow'"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+
+  # ── Services ────────────────────────────────────────────
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth-service/Dockerfile
+    container_name: couple-auth-service
+    ports: ["8081:8081"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    container_name: couple-user-service
+    ports: ["8082:8082"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  couple-service:
+    build:
+      context: .
+      dockerfile: services/couple-service/Dockerfile
+    container_name: couple-couple-service
+    ports: ["8083:8083"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  realtime-service:
+    build:
+      context: .
+      dockerfile: services/realtime-service/Dockerfile
+    container_name: couple-realtime-service
+    ports: ["8084:8084"]
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  feeling-service:
+    build:
+      context: .
+      dockerfile: services/feeling-service/Dockerfile
+    container_name: couple-feeling-service
+    ports: ["8085:8085"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  character-service:
+    build:
+      context: .
+      dockerfile: services/character-service/Dockerfile
+    container_name: couple-character-service
+    ports: ["8087:8087"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PASSWORD=${REDIS_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  diary-service:
+    build:
+      context: .
+      dockerfile: services/diary-service/Dockerfile
+    container_name: couple-diary-service
+    ports: ["8086:8086"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      elasticsearch: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  calendar-service:
+    build:
+      context: .
+      dockerfile: services/calendar-service/Dockerfile
+    container_name: couple-calendar-service
+    ports: ["8088:8088"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+    depends_on:
+      postgres: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: couple-notification-service
+    ports: ["8089:8089"]
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      - SPRING_DATASOURCE_USERNAME=${POSTGRES_USER}
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD}
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - FIREBASE_PROJECT_ID=${FIREBASE_PROJECT_ID}
+      - FIREBASE_ENABLED=false
+    depends_on:
+      postgres: {condition: service_healthy}
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: services/ai-service/Dockerfile
+    container_name: couple-ai-service
+    ports: ["8090:8090"]
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_EXPIRY_MS=${JWT_ACCESS_EXPIRY_MS}
+      - JWT_REFRESH_EXPIRY_MS=${JWT_REFRESH_EXPIRY_MS}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - AI_STUB_MODE=true
+    depends_on:
+      kafka: {condition: service_healthy}
+    networks: [couple-net]
+    restart: on-failure
