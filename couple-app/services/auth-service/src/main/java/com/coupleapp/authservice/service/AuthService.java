@@ -52,4 +52,11 @@ import java.util.UUID;
         redis.opsForValue().set("auth:refresh:" + user.getId(), refresh, Duration.ofDays(30));
         return new AuthResponse(access, refresh, user.getId(), user.getNickname());
     }
+
+    public void setCoupleId(UUID userId, UUID coupleId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        user.setCoupleId(coupleId);
+        userRepository.save(user);
+    }
 }

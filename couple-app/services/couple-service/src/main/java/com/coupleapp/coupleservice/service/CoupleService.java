@@ -1,21 +1,42 @@
 package com.coupleapp.coupleservice.service;
+
 import com.coupleapp.coupleservice.domain.Couple;
 import com.coupleapp.coupleservice.dto.*;
 import com.coupleapp.coupleservice.kafka.CoupleEventProducer;
 import com.coupleapp.coupleservice.repository.CoupleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.security.SecureRandom;
 import java.time.*;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
-@Service @RequiredArgsConstructor public class CoupleService {
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class CoupleService {
     private static final String CHARS="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
     private final CoupleRepository repo;
     private final StringRedisTemplate redis;
     private final CoupleEventProducer producer;
+
+    private void notifyAuthService(UUID userId, UUID coupleId) {
+        try {
+            java.net.URI uri = java.net.URI.create(
+                "http://auth-service:8081/api/auth/internal/set-couple"
+                + "?userId=" + userId + "&coupleId=" + coupleId);
+            java.net.http.HttpClient.newHttpClient().send(
+                java.net.http.HttpRequest.newBuilder(uri).POST(
+                    java.net.http.HttpRequest.BodyPublishers.noBody()).build(),
+                java.net.http.HttpResponse.BodyHandlers.discarding());
+        } catch (Exception e) {
+            log.warn("Could not notify auth-service for user {}: {}", userId, e.getMessage());
+        }
+    }
 
     public InviteResponse generateInviteCode(UUID userId){
         if(repo.existsByUserAIdOrUserBId(userId,userId))throw new IllegalArgumentException("Already in a couple");
@@ -33,6 +54,8 @@ import java.util.UUID;
         if(repo.existsByUserAIdOrUserBId(userBId,userBId))throw new IllegalArgumentException("Already in a couple");
         Couple c=Couple.builder().userAId(userAId).userBId(userBId).anniversaryDate(LocalDate.now()).build();
         repo.save(c);
+        notifyAuthService(userAId, c.getId());
+        notifyAuthService(userBId, c.getId());
         redis.delete("couple:invite:"+code);
         producer.publishCoupleFormed(c.getId(),userAId,userBId);
         return toResponse(c);

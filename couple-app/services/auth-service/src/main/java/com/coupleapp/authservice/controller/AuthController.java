@@ -12,4 +12,14 @@ public class AuthController {
     @PostMapping("/login") public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest req) { return ResponseEntity.ok(authService.login(req)); }
     @PostMapping("/refresh") public ResponseEntity<AuthResponse> refresh(@RequestBody RefreshRequest req) { return ResponseEntity.ok(authService.refresh(req.getRefreshToken())); }
     @PostMapping("/logout") public ResponseEntity<Void> logout(@RequestHeader("Authorization") String bearer) { authService.logout(bearer.replace("Bearer ","")); return ResponseEntity.noContent().build(); }
+
+    @PostMapping("/internal/set-couple")
+    public ResponseEntity<Void> setCouple(
+            @RequestParam String userId,
+            @RequestParam String coupleId) {
+        authService.setCoupleId(
+            java.util.UUID.fromString(userId),
+            java.util.UUID.fromString(coupleId));
+        return ResponseEntity.ok().build();
+    }
 }

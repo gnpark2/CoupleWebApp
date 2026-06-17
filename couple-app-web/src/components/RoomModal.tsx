@@ -9,7 +9,6 @@ import './RoomModal.css'
 
 export function RoomModal() {
   const activeRoom = useGameStore((s) => s.activeRoom)
-  const setActiveRoom = useGameStore((s) => s.setActiveRoom)
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
@@ -21,7 +20,10 @@ export function RoomModal() {
     return () => window.removeEventListener('keydown', handler)
   }, [activeRoom])
 
-  // Close modal automatically if the player walks away from the room
+  useEffect(() => {
+    if (activeRoom) setOpen(true)  // open immediately when entering a room
+  }, [activeRoom])
+
   useEffect(() => {
     if (!activeRoom) setOpen(false)
   }, [activeRoom])
@@ -52,7 +54,7 @@ function RoomContent({ roomId }: { roomId: string }) {
   switch (roomId) {
     case 'character': return <CharacterRoom />
     case 'diary':
-    case 'setlog': return <DiaryRoom mode={roomId} />
+    case 'setlog': return <DiaryRoom mode={roomId as 'diary' | 'setlog'} />
     case 'calendar': return <CalendarRoom />
     case 'gift': return <GiftRoom />
     case 'dating': return <PlaceholderRoom text="Screen share, voice, and watch-together coming soon." />
