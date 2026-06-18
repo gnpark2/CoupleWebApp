@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import { Client, IMessage } from '@stomp/stompjs'
 import SockJS from 'sockjs-client'
 import { REALTIME_WS_URL } from '../api/client'
-import { getCoupleId } from '../api/auth'
+import { getCoupleId } from '../App'
 import { useGameStore } from '../store/useGameStore'
 
 interface FeelingEvent {
@@ -44,7 +44,7 @@ export function useRealtime(listeners: Listeners, currentLocation: string) {
   const setPartner = useGameStore((s) => s.setPartner)
 
   useEffect(() => {
-    const coupleId = getCoupleId()
+    const coupleId = localStorage.getItem('coupleId')
     const token = localStorage.getItem('accessToken')
     if (!token) return
 
