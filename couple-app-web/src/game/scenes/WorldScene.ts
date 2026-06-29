@@ -168,16 +168,16 @@ export class WorldScene extends Phaser.Scene {
 
     container.add([body, emoji, label])
 
-    if (isMe) {
-      this.tweens.add({
-        targets: container,
-        y: y - 5,
-        duration: 1400,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut',
-      })
-    }
+    // if (isMe) {
+    //   this.tweens.add({
+    //     targets: container,
+    //     y: y - 5,
+    //     duration: 1400,
+    //     yoyo: true,
+    //     repeat: -1,
+    //     ease: 'Sine.easeInOut',
+    //   })
+    // }
 
     return container
   }
